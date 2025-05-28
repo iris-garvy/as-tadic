@@ -1,0 +1,81 @@
+compute_genus := function(d,p);
+    return Integers()!((d+1-2) * (p-1)/2);
+end function;
+
+
+p := 3;
+d := 5;
+Fp := FiniteField(p);
+matrix_size := compute_genus(d,p);
+
+AH_precision := p*matrix_size;
+ps_precision := p*matrix_size;
+padic_precision := 2;
+
+ZZp := pAdicField(p,padic_precision);
+Q := Rationals();
+
+// Calculate Artin Hasse coefficients up to AH_precision
+AH_coefficients := [Q.1, Q.1];
+
+for n in [2..AH_precision] do
+    un := 0;
+
+    for i in [0..n] do
+        index := n - p^i + 1;
+        if index gt 0 then
+            un := un + AH_coefficients[index];
+        else
+            break;
+        end if;
+    end for;
+
+    un := un / n;
+    AH_coefficients[#AH_coefficients +1] := ZZp ! un;
+
+end for;
+
+
+
+AH<xpi> := Polynomial(AH_coefficients);
+LL<zetaminus1> := PowerSeriesRing(ZZp,5);
+AH := LL ! (AH-1);
+//AssignNames(~LL, zetaminus1);
+AH := Reverse(AH);
+//Evaluate(AH, xpi - 1);
+
+
+
+R<xpi> := PolynomialRing(ZZp);
+Zpi<xpi> := quo<R | xpi^(p-1) + p>;
+Zpi_Fp<w> := PolynomialRing(Fp);
+L<x> := PolynomialRing(Zpi);
+
+//Get Sum from multiplying G = theta(pi*x^i)theta(pi*j)...
+B := (&+[AH_coefficients[i+1] * (xpi * x^5)^(i): i in [0..ps_precision-1]]) * (&+[AH_coefficients[i+1] * (xpi * x^2)^(i): i in [0..ps_precision-1]]);
+B_coefficients := Coefficients(B);
+
+
+
+//Create Frobenius?/Cartier-Manin? matrix
+nM := [[L!0^^matrix_size]^^matrix_size];
+
+for i in [1..matrix_size] do
+    for j in [1..matrix_size] do
+        if p*i - j lt 0 then
+            nM[i][j] := 0;
+        else
+            nM[i][j] := B_coefficients[p*i-j+1]; 
+        end if;
+    end for;
+end for; 
+
+nM := Matrix(nM);
+
+
+print(AH);
+print(nM);
+
+
+
+
