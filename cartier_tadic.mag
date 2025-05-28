@@ -12,9 +12,9 @@ An<T> := quo<A | T^(p^n)>;
 Rp<x> := PolynomialRing(An);
 
 //set polynomial
-f := x^5+x^3;
+f := x^5+x^2;
 d := Degree(f);
-matrix_size := compute_genus(d,p)+1;
+matrix_size := Floor((p-1)*d/p);
 
 //find alpha to the first level
 alpha := 1 + T*f + T^2 * (f - f^2);
@@ -41,6 +41,7 @@ for i in [1..matrix_size] do
     end for;
 end for; 
 
+M_1 := MatrixRing(An,matrix_size);
 nM := Matrix(nM);
 
 //okay lets construct the matrix that converts the R basis into the M_1 Basis
@@ -51,7 +52,6 @@ nM := Matrix(nM);
 //the following will be only for p=3 before i figure out how to generalize it more
 
 r_coefficients := [2+2*T, 2];
-iofone := Floor((p-1)*d/p);
 
 find_mu := function(i,d,p);
     answer := p-1;
@@ -61,15 +61,25 @@ find_mu := function(i,d,p);
     return answer;
 end function;
 
-mu_index := [**];
-for i in [1..iofone] do
+mu_index := [];
+for i in [1..matrix_size] do
     Append(~mu_index, find_mu(i,d,p));
 end for;
 
-e_basis := [**];
-for i in [1..iofone] do
-    Append(~e_basis, (T^mu_index[i])*r_coefficients[mu_index[i]]*x^(i-1));
+e_coefficients := [];
+for i in [1..matrix_size] do
+    Append(~e_coefficients, (T^mu_index[i])*r_coefficients[mu_index[i]]);
 end for;
+
+// e_coefficients_inverses := [An!1^^matrix_size];
+// for i in [1..matrix_size] do
+//     for j in [1..p-1] do
+//     e_coefficients_inverses[i] := e_coefficients_inverses[i] + (1 - e_coefficients[i]*e_coefficients_inverses[i]);
+//     end for;
+// end for;
+
+
+change_matrix_basis := DiagonalMatrix(M_1, e_coefficients);
 
 
 
