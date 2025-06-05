@@ -7,9 +7,9 @@ p := 3;
 n := 3;
 
 Fp := FiniteField(p);
-A<T> := PolynomialRing(Fp);
-An<T> := quo<A | T^(p^n)>;
-Rp<x> := PolynomialRing(An);
+Ab_unred<T> := PolynomialRing(Fp);
+A := FunctionField(Fp);
+Rp<x> := PolynomialRing(Ab_unred);
 
 //set polynomial
 f := x^5+x^2;
@@ -29,7 +29,7 @@ end for;
 //write out cartier matrix
 cartier_coefficients := Coefficients(alpha_inverse);
 
-nM := [[An!0^^matrix_size]^^matrix_size];
+nM := [[A!0^^matrix_size]^^matrix_size];
 
 for i in [1..matrix_size] do
     for j in [1..matrix_size] do
@@ -41,8 +41,7 @@ for i in [1..matrix_size] do
     end for;
 end for; 
 
-M_1 := MatrixRing(An,matrix_size);
-nM := Matrix(nM);
+nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
 
 //okay lets construct the matrix that converts the R basis into the M_1 Basis
 
@@ -50,6 +49,7 @@ nM := Matrix(nM);
 // wait its not the genus im confused :sob:
 
 //the following will be only for p=3 before i figure out how to generalize it more
+
 
 r_coefficients := [2+2*T, 2];
 
@@ -66,22 +66,39 @@ for i in [1..matrix_size] do
     Append(~mu_index, find_mu(i,d,p));
 end for;
 
+
 e_coefficients := [];
 for i in [1..matrix_size] do
     Append(~e_coefficients, (T^mu_index[i])*r_coefficients[mu_index[i]]);
 end for;
 
-// e_coefficients_inverses := [An!1^^matrix_size];
-// for i in [1..matrix_size] do
-//     for j in [1..p-1] do
-//     e_coefficients_inverses[i] := e_coefficients_inverses[i] + (1 - e_coefficients[i]*e_coefficients_inverses[i]);
-//     end for;
-// end for;
+
+change_matrix_basis := DiagonalMatrix(Ab_unred, e_coefficients);
+
+nM := nM*change_matrix_basis;
+
+truncatePoly := function(f,d)
+    return &+[ Coefficient(f, i) * T^i : i in [0..d] ];
+end function;
+
+nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncatePoly(nM[i,j], 2) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
 
 
-change_matrix_basis := DiagonalMatrix(M_1, e_coefficients);
+cutoff := 2;
+for i in [1..Ncols(nM)] do
+    for j in [1..Nrows(nM)] do
+        if Denominator(nM[i,j]) ne 1 then
+            denominator := Denominator(nM[i,j]);
+            denominator_inverse := 1;
+            for k in [1..p] do
+                denominator_inverse := denominator_inverse + (1 - denominator*denominator_inverse);
+            end for;
+            nM[i,j] := Numerator(nM[i,j])*denominator_inverse;
+        end if;
+    end for;
+end for;
 
-
-
-
+nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncatePoly((Ab_unred!nM[i,j]), 2) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+            
 
