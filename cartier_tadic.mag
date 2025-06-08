@@ -2,9 +2,29 @@ compute_genus := function(d,p);
     return Integers()!((d+1-2) * (p-1)/2);
 end function;
 
+find_mu := function(i,d,p);
+    answer := p-1;
+    while (answer-1)*d/p gt i do
+        answer := answer - 1;
+    end while;
+    return answer;
+end function;
+
+truncate_poly := function(f,d,R)
+    T := R.1;
+    return &+[ Coefficient(f, i) * T^i : i in [0..d] ];
+end function;
+
+
+apply_T := function(f,R)
+    y := R.1;
+    return Evaluate(f, y+1) - f;
+end function;
+
+// since im programming i can just do it iteratively instead of figuring out a general formula
+
 
 p := 3;
-n := 3;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
@@ -12,7 +32,7 @@ A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
 //set polynomial
-f := x^5+x^2;
+f := x^8+x^4;
 d := Degree(f);
 matrix_size := Floor((p-1)*d/p);
 
@@ -53,14 +73,6 @@ nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
 
 r_coefficients := [2+2*T, 2];
 
-find_mu := function(i,d,p);
-    answer := p-1;
-    while (answer-1)*d/p gt i do
-        answer := answer - 1;
-    end while;
-    return answer;
-end function;
-
 mu_index := [];
 for i in [1..matrix_size] do
     Append(~mu_index, find_mu(i,d,p));
@@ -76,16 +88,10 @@ end for;
 change_matrix_basis := DiagonalMatrix(Ab_unred, e_coefficients);
 
 nM := nM*change_matrix_basis;
-
-truncatePoly := function(f,d)
-    return &+[ Coefficient(f, i) * T^i : i in [0..d] ];
-end function;
-
-nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncatePoly(nM[i,j], 2) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
 nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
 
 
-cutoff := 2;
 for i in [1..Ncols(nM)] do
     for j in [1..Nrows(nM)] do
         if Denominator(nM[i,j]) ne 1 then
@@ -99,6 +105,6 @@ for i in [1..Ncols(nM)] do
     end for;
 end for;
 
-nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncatePoly((Ab_unred!nM[i,j]), 2) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(e_coefficients[i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
             
 
