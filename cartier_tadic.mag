@@ -2,6 +2,8 @@ compute_genus := function(d,p);
     return Integers()!((d+1-2) * (p-1)/2);
 end function;
 
+load "cartier_schmidt.mag";
+
 find_mu := function(i,d,p);
     answer := p-1;
     while (answer-1)*d/p gt i do
@@ -10,82 +12,133 @@ find_mu := function(i,d,p);
     return answer;
 end function;
 
-truncate_poly := function(f,d,R)
+truncate_poly := function(f,cutoff,R)
     T := R.1;
-    return &+[ Coefficient(f, i) * T^i : i in [0..d] ];
+    return &+[ Coefficient(f, i) * T^i : i in [0..cutoff] ];
 end function;
 
 
-apply_T := function(f,R)
-    y := R.1;
-    return Evaluate(f, y+1) - f;
+apply_T := function(f : n := 1)
+    y := Parent(f).1;
+    for i in [1..n] do
+        f := Evaluate(f, y+1) - f;
+    end for;
+    return f;
 end function;
 
-// since im programming i can just do it iteratively instead of figuring out a general formula
+apply_Tpoly := function(f, polynomial)
+    R:= Parent(f);
+    d := Degree(polynomial);
+    polynomial_list := [(R!0)^^d];
+    for i in [0..d] do
+        if Coefficient(polynomial,i) ne 0 then
+            Append(~polynomial_list, Coefficient(polynomial,i)*apply_T(f: n:=i));
+        end if;
+    end for;
+    return &+polynomial_list;
+end function;
+
+find_rcoeff := function(p) 
+    Fp := FiniteField(p);
+    A<T> := PolynomialRing(Fp);
+    B<y> := PolynomialRing(A);
+    r_list := [];
+    i := 1;
+    for i in [1..p-1] do
+        r_coeff := T^i; //note that this is a terrible implementation. I just didnt want to think about how to do it smart.
+        transformed_w0 := apply_Tpoly(-y^(p-1),r_coeff);
+
+        while transformed_w0 ne -y^((p-1)-i) do 
+            difference := -y^((p-1)-i) - transformed_w0;
+            r_coeff +:= T^(p-1-Degree(difference));
+            transformed_w0 := apply_Tpoly(-y^(p-1),r_coeff);
+        end while;
+        r_coeff := r_coeff/(T^Degree(TrailingTerm(r_coeff)));
+        Append(~r_list,r_coeff);
+
+    end for;
+     return r_list;
+end function;
 
 
-p := 3;
+construct_tadic := function (p,f)
+    Fp := FiniteField(p);
+    Ab_unred<T> := PolynomialRing(Fp);
+    A := FunctionField(Fp);
+    Rp<x> := PolynomialRing(Ab_unred);
+
+    f := Rp!f;
+    d := Degree(f);
+    matrix_size := Floor((p-1)*d/p);
+
+    //find alpha to the first level
+    alpha := 1 + T*f + T^2 * (f - f^2);
+
+    //calculate alpha inverse
+    alpha_inverse := 1;
+
+    for i in [1..p-1] do
+        alpha_inverse := alpha_inverse + (1 - alpha*alpha_inverse);
+    end for;
+
+    //write out cartier matrix
+    cartier_coefficients := Coefficients(alpha_inverse);
+
+    nM := [[A!0^^matrix_size]^^matrix_size];
+
+    for i in [1..matrix_size] do
+        for j in [1..matrix_size] do
+            if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
+                nM[i][j] := 0;
+            else
+                nM[i][j] := cartier_coefficients[p*i-j+1]; 
+            end if;
+        end for;
+    end for; 
+
+    nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
+    return nM;
+end function;
+
+//okay lets construct the matrix that converts the R basis into the M_1 Basis
+r2m_Matrix := function(p,d)
+    matrix_size := Floor((p-1)*d/p);
+
+    Fp := FiniteField(p);
+    Ab_unred<T> := PolynomialRing(Fp);
+
+
+    r_coefficients := find_rcoeff(p);
+
+    mu_index := [];
+    for i in [1..matrix_size] do
+        Append(~mu_index, find_mu(i,d,p));
+    end for;
+
+
+    e_coefficients := [];
+    for i in [1..matrix_size] do
+        Append(~e_coefficients, (T^mu_index[i])*r_coefficients[mu_index[i]]);
+    end for;
+
+    change_matrix_basis := DiagonalMatrix(Ab_unred, e_coefficients);
+    return change_matrix_basis;
+end function;
+
+
+
+p := 7;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
 A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
-//set polynomial
-f := x^8+x^4;
-d := Degree(f);
-matrix_size := Floor((p-1)*d/p);
+f:= x^8 + x^4;
 
-//find alpha to the first level
-alpha := 1 + T*f + T^2 * (f - f^2);
+change_matrix_basis := r2m_Matrix(p,Degree(f));
+nM := construct_tadic(p,f);
 
-//calculate alpha inverse
-alpha_inverse := 1;
-
-for i in [1..p-1] do
-    alpha_inverse := alpha_inverse + (1 - alpha*alpha_inverse);
-end for;
-
-//write out cartier matrix
-cartier_coefficients := Coefficients(alpha_inverse);
-
-nM := [[A!0^^matrix_size]^^matrix_size];
-
-for i in [1..matrix_size] do
-    for j in [1..matrix_size] do
-        if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
-            nM[i][j] := 0;
-        else
-            nM[i][j] := cartier_coefficients[p*i-j+1]; 
-        end if;
-    end for;
-end for; 
-
-nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
-
-//okay lets construct the matrix that converts the R basis into the M_1 Basis
-
-//I was gonna saw we need to find i(n) but thats gotta just be the genus so we can just use compute genus (for our simple case)
-// wait its not the genus im confused :sob:
-
-//the following will be only for p=3 before i figure out how to generalize it more
-
-
-r_coefficients := [2+2*T, 2];
-
-mu_index := [];
-for i in [1..matrix_size] do
-    Append(~mu_index, find_mu(i,d,p));
-end for;
-
-
-e_coefficients := [];
-for i in [1..matrix_size] do
-    Append(~e_coefficients, (T^mu_index[i])*r_coefficients[mu_index[i]]);
-end for;
-
-
-change_matrix_basis := DiagonalMatrix(Ab_unred, e_coefficients);
 
 nM := nM*change_matrix_basis;
 nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
@@ -105,6 +158,11 @@ for i in [1..Ncols(nM)] do
     end for;
 end for;
 
-nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(e_coefficients[i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+nM := Matrix(
+    Ab_unred, 
+    Nrows(nM), 
+    Ncols(nM), 
+    [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
+);
             
 
