@@ -26,13 +26,13 @@ apply_T := function(f : n := 1)
     return f;
 end function;
 
-apply_Tpoly := function(f, polynomial)
+apply_Tpoly := function(f, Tpolynomial)
     R:= Parent(f);
-    d := Degree(polynomial);
+    d := Degree(Tpolynomial);
     polynomial_list := [(R!0)^^d];
     for i in [0..d] do
-        if Coefficient(polynomial,i) ne 0 then
-            Append(~polynomial_list, Coefficient(polynomial,i)*apply_T(f: n:=i));
+        if Coefficient(Tpolynomial,i) ne 0 then
+            Append(~polynomial_list, Coefficient(Tpolynomial,i)*apply_T(f: n:=i));
         end if;
     end for;
     return &+polynomial_list;
@@ -61,10 +61,9 @@ find_rcoeff := function(p)
 end function;
 
 
-construct_tadic := function (p,f)
+construct_tadic := function (f,p)
     Fp := FiniteField(p);
     Ab_unred<T> := PolynomialRing(Fp);
-    A := FunctionField(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
 
     f := Rp!f;
@@ -84,14 +83,14 @@ construct_tadic := function (p,f)
     //write out cartier matrix
     cartier_coefficients := Coefficients(alpha_inverse);
 
-    nM := [[A!0^^matrix_size]^^matrix_size];
+    nM := [[Ab_unred!0^^matrix_size]^^matrix_size];
 
     for i in [1..matrix_size] do
         for j in [1..matrix_size] do
             if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
                 nM[i][j] := 0;
             else
-                nM[i][j] := cartier_coefficients[p*i-j+1]; 
+                nM[i][j] := truncate_poly(cartier_coefficients[p*i-j+1], p-1, Ab_unred); 
             end if;
         end for;
     end for; 
@@ -100,8 +99,78 @@ construct_tadic := function (p,f)
     return nM;
 end function;
 
+construct_schmidt := function(f,p)
+    d := Degree(f);
+    Fp := FiniteField(p);
+    ZZp:= FiniteField(p,2);
+    matrix_size := compute_genus(d,p);
+
+    AH_precision := p*matrix_size;
+    ps_precision := p*matrix_size;
+
+    Q := Rationals();
+
+    // Calculate Artin Hasse coefficients up to AH_precision
+    AH_coefficients := [Q.1, Q.1];
+
+    for n in [2..AH_precision] do
+        un := 0;
+
+        for i in [0..n] do
+            index := n - p^i + 1;
+            if index gt 0 then
+                un := un + AH_coefficients[index];
+            else
+                break;
+            end if;
+        end for;
+
+        un := un / n;
+        print(un);
+        AH_coefficients[#AH_coefficients +1] := un;
+    end for;
+
+    AH_coefficients := [ZZp ! x : x in AH_coefficients];
+
+    AH<xpi> := Polynomial(AH_coefficients);
+    LL<zetaminus1> := PowerSeriesRing(ZZp,5);
+    AH := LL ! (AH-1);
+    AH := Reverse(AH);
+
+    R<xpi> := PolynomialRing(ZZp);
+    Zpi<xpi> := quo<R | xpi^(p-1) + p>;
+    Zpi_Fp<w> := PolynomialRing(Fp);
+    L<x> := PolynomialRing(Zpi);
+
+    f:= L!f;
+
+    //Get Sum from multiplying G = theta(pi*x^i)theta(pi*j)...
+    B := 1;
+        for term in Terms(f) do
+            B := B * (&+[AH_coefficients[i+1] * (xpi * L!term)^(i): i in [0..ps_precision-1]]);
+            print(B);
+        end for;
+    B_coefficients := Coefficients(B);
+
+    //Create Frobenius?/Cartier-Manin? matrix
+    nM := [[L!0^^matrix_size]^^matrix_size];
+
+    for i in [1..matrix_size] do
+        for j in [1..matrix_size] do
+            if p*i - j lt 0 or p*i-j+1 gt #B_coefficients then
+                nM[i][j] := 0;
+            else
+                nM[i][j] := B_coefficients[p*i-j+1]; 
+            end if;
+        end for;
+    end for; 
+
+    nM := Matrix(nM);
+    return(nM);
+end function;
+
 //okay lets construct the matrix that converts the R basis into the M_1 Basis
-r2m_Matrix := function(p,d)
+r2m_Matrix := function(d,p)
     matrix_size := Floor((p-1)*d/p);
 
     Fp := FiniteField(p);
@@ -127,17 +196,17 @@ end function;
 
 
 
-p := 7;
+p := 3;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
 A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
-f:= x^8 + x^4;
+f:= x^5+x^2;
 
-change_matrix_basis := r2m_Matrix(p,Degree(f));
-nM := construct_tadic(p,f);
+change_matrix_basis := r2m_Matrix(Degree(f),p);
+nM := construct_tadic(f,p);
 
 
 nM := nM*change_matrix_basis;
