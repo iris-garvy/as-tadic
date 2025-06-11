@@ -1,0 +1,117 @@
+//Over X= P^1
+
+//Compute a-number of Artin-Schreier cover of P^1 given by y^p-y = f
+a_number := function(R,f,p);
+    P<y> := PolynomialRing(R);
+    F<alpha> := FunctionField(y^p - y - f);
+    return Dimension(Kernel(CartierRepresentation(F)));
+end function;
+
+//Compute bounds as in 6.2 .  Here n(X) =-1, so things are especially easy
+//Compute n_{Q,i}
+compute_n := function(i,d,p);
+	return Ceiling( (p-1-i)*d /p);
+end function;
+
+//numbers n = -1 mod p with -a \geq n \geq -b 
+negative_ones := function(a,b,p);
+    return Ceiling(b/p)-Ceiling((a-1)/p);
+end function;
+
+//dim H^0(P^1,\ker V(n Q))
+dim_kerVX := function(n,p); 
+    return n - Ceiling(n/p);
+end function;
+    
+//is a + d*k = 1 mod p for k<=i, for use in computing T
+check_mults := function(a,d,i,p);
+    k :=( (1-a)* Modinv(d,p)) mod p ;
+    return not (k gt i);
+end function;
+
+//lower bounds over P^1: compute L(\pi,P^1) exactly
+lower_bound := function(d,p);
+    lowerbound:= 0;
+    optimum:=0;
+    
+    for i in [0..p-1] do
+        //dim of space
+        domain:=0;
+        
+        //relations
+        relations := 0;
+        
+        ai := compute_n(i,d,p);
+        for j in [0..i] do
+            domain:=domain+dim_kerVX(compute_n(j,d,p),p);
+            relations := relations + negative_ones(compute_n(j,d,p)+1,ai + (i-j) * d,p);
+    	end for;
+        if domain-relations gt lowerbound then
+            lowerbound := domain-relations; 
+            optimum := i;   
+    	end if;
+            
+    end for;
+    //redprint "Opt",optimum;    
+    return lowerbound;
+end function;
+
+//upper bound over P^1: bound U(P^1,\pi) via computing #T
+
+upper_bound := function(d,p);
+    count := 0; //not in kernel
+
+    for i in [0..p-1] do
+        n:= compute_n(i,d,p);
+        for j in [2..n] do
+            if (j mod p ne 1) and check_mults(j,d,i,p) then
+                count := count+1;
+	        end if;	
+	    end for;
+    end for;
+
+    dimension := 0;
+    for i in [0..p-1] do
+        dimension := dimension + dim_kerVX(compute_n(i,d,p),p);
+    end for;
+
+    upperbound :=  dimension - count;
+    return upperbound;
+end function;
+
+//trivial bounds
+trivial_lower := function(d,p);
+    return dim_kerVX(compute_n(0,d,p),p);
+end function;
+    
+trivial_upper := function(d,p);
+    return (p-1)/2 * (d-1);
+end function;
+
+compute_examples := function()
+    "Table 1";
+    p:=13;
+    for d in [1..12] do
+	    print d, trivial_lower(d,p),lower_bound(d,p), upper_bound(d,p),trivial_upper(d,p);
+    end for;
+
+    "Example 6.3";
+    lower_bound(3,5);
+    upper_bound(3,5);
+
+    "Table 2";
+    R<t> := FunctionField(GF(13));
+    a_number(R,t^7 + 2 * t^6 + 7 * t^5,13);
+    a_number(R,t^7 + t^2 + t,13);
+    a_number(R,t^7 + 8 * t^2,13);
+    a_number(R,t^7 + t,13);
+    a_number(R,t^7,13);
+
+    "Example 7.4";
+    R<t> := FunctionField(GF(5));
+    a_number(R,t^7+3*t^6+t^4+t^3+2*t^2+t+3/(t+1)+3/(t+1)^2+4/(t+1)^3+4/(t+1)^4+4/(t+1)^6+3/(t+1)^7,5);
+    return "Done";
+end function;
+
+
+

@@ -1,8 +1,9 @@
+load "build_matrix.mag";
+load "projectiveline.mag";
+
 compute_genus := function(d,p);
     return Integers()!((d+1-2) * (p-1)/2);
 end function;
-
-load "cartier_schmidt.mag";
 
 find_mu := function(i,d,p);
     answer := p-1;
@@ -196,14 +197,14 @@ end function;
 
 
 
-p := 3;
+p := 11;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
 A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
-f:= x^5+x^2;
+f:= x^16+x^8;
 
 change_matrix_basis := r2m_Matrix(Degree(f),p);
 nM := construct_tadic(f,p);
@@ -233,5 +234,10 @@ nM := Matrix(
     Ncols(nM), 
     [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
 );
-            
+
+print(nM);
+FF:= FunctionField(Fp);
+g := &+[1/(FF!term): term in Terms(f)];
+printf "lower bound: %3o \n", lower_bound(Degree(f),p);
+printf "a-number: %3o", anumber(g,Degree(f),FF);            
 
