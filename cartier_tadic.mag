@@ -100,6 +100,48 @@ construct_tadic := function (f,p)
     return nM;
 end function;
 
+simplified_tadic := function (f,p)
+    Fp := FiniteField(p);
+    Ab_unred<T> := PolynomialRing(Fp);
+    Rp<x> := PolynomialRing(Ab_unred);
+
+    f := Rp!f;
+    d := Degree(f);
+    matrix_size := Floor((p-1)*d/p);
+
+    //find alpha to the first level
+    alpha := 1 + T*f + T^2 * (f - f^2);
+
+    //calculate alpha inverse
+    alpha_inverse := 1;
+
+    for i in [1..p-1] do
+        alpha_inverse := alpha_inverse + (1 - alpha*alpha_inverse);
+    end for;
+
+    //write out cartier matrix
+    cartier_coefficients := Coefficients(alpha_inverse);
+
+    nM := [[Ab_unred!0^^matrix_size]^^matrix_size];
+
+    for i in [1..matrix_size] do
+        for j in [1..matrix_size] do
+            if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
+                nM[i][j] := 0;
+            else
+                if cartier_coefficients[p*i-j+1] eq 0 then
+                    nM[i][j] := 0;
+                else
+                    nM[i][j] := truncate_poly(cartier_coefficients[p*i-j+1], Degree(TrailingTerm(cartier_coefficients[p*i-j+1])), Ab_unred); 
+                end if;
+            end if;
+        end for;
+    end for; 
+
+    nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
+    return nM;
+end function;
+
 construct_schmidt := function(f,p)
     d := Degree(f);
     Fp := FiniteField(p);
@@ -195,48 +237,58 @@ r2m_Matrix := function(d,p)
     return change_matrix_basis;
 end function;
 
+construct_M1cartier := function(f,p)
+
+    Fp := FiniteField(p);
+    Ab_unred<T> := PolynomialRing(Fp);
+    A := FunctionField(Fp);
+    Rp<x> := PolynomialRing(Ab_unred);
+
+    f:= Rp!f;
+
+    change_matrix_basis := r2m_Matrix(Degree(f),p);
+    nM := construct_tadic(f,p);
+
+    nM := nM*change_matrix_basis;
+    nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
+    nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
 
 
-p := 7;
+    for i in [1..Ncols(nM)] do
+        for j in [1..Nrows(nM)] do
+            if Denominator(nM[i,j]) ne 1 then
+                denominator := Denominator(nM[i,j]);
+                denominator_inverse := 1;
+                for k in [1..p] do
+                    denominator_inverse := denominator_inverse + (1 - denominator*denominator_inverse);
+                end for;
+                nM[i,j] := Numerator(nM[i,j])*denominator_inverse;
+            end if;
+        end for;
+    end for;
+
+    nM := Matrix(
+        Ab_unred, 
+        Nrows(nM), 
+        Ncols(nM), 
+        [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
+    );
+    return nM;
+end function;
+
+p := 101;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
 A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
-f:= x^15+x^3;
-
-change_matrix_basis := r2m_Matrix(Degree(f),p);
-nM := construct_tadic(f,p);
-
-
-nM := nM*change_matrix_basis;
-nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
-nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
-
-
-for i in [1..Ncols(nM)] do
-    for j in [1..Nrows(nM)] do
-        if Denominator(nM[i,j]) ne 1 then
-            denominator := Denominator(nM[i,j]);
-            denominator_inverse := 1;
-            for k in [1..p] do
-                denominator_inverse := denominator_inverse + (1 - denominator*denominator_inverse);
-            end for;
-            nM[i,j] := Numerator(nM[i,j])*denominator_inverse;
-        end if;
-    end for;
-end for;
-
-nM := Matrix(
-    Ab_unred, 
-    Nrows(nM), 
-    Ncols(nM), 
-    [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
-);
+f:= x^5+x^2;
+nM := simplified_tadic(f,p);
+//nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], Degree(TrailingTerm(nM[i,j])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
 
 //SetOutputFile("matrix_examples.txt");
-fprintf "matrix_examples.txt", "%3o \n", f;
+fprintf "matrix_examples.txt", "p = %3o, f = %3o \n", p, f;
 fprintf "matrix_examples.txt", "%3o \n", nM;
 FF:= FunctionField(Fp);
 g := &+[1/(FF!term): term in Terms(f)];
