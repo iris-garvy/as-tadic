@@ -197,14 +197,14 @@ end function;
 
 
 
-p := 11;
+p := 7;
 
 Fp := FiniteField(p);
 Ab_unred<T> := PolynomialRing(Fp);
 A := FunctionField(Fp);
 Rp<x> := PolynomialRing(Ab_unred);
 
-f:= x^16+x^8;
+f:= x^15+x^3;
 
 change_matrix_basis := r2m_Matrix(Degree(f),p);
 nM := construct_tadic(f,p);
@@ -235,9 +235,11 @@ nM := Matrix(
     [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
 );
 
-print(nM);
+//SetOutputFile("matrix_examples.txt");
+fprintf "matrix_examples.txt", "%3o \n", f;
+fprintf "matrix_examples.txt", "%3o \n", nM;
 FF:= FunctionField(Fp);
 g := &+[1/(FF!term): term in Terms(f)];
-printf "lower bound: %3o \n", lower_bound(Degree(f),p);
-printf "a-number: %3o", anumber(g,Degree(f),FF);            
+fprintf "matrix_examples.txt", "lower bound: %3o \n", lower_bound(Degree(f),p);
+fprintf "matrix_examples.txt", "a-number: %3o \n \n", anumber(g,Degree(f),FF);    
 
