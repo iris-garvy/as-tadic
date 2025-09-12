@@ -1,0 +1,65 @@
+r_ij := function(r,i,j,d)
+    return d*Ceiling((r*i-j)/d)-(r*i-j);
+end function;
+
+c_n := function(r,n,d)
+    max := 0;
+    max_compare := 0;
+        for sigma in Sym({1..n}) do
+            max_compare := &+[r_ij(r,i,Image(sigma,i),d): i in [1..n]];
+            if max_compare gt max then
+                max := max_compare;
+            end if;
+        end for;
+    min := 100000;
+    min_compare := 0;
+        for sigma in Sym({1..n}) do
+            min_compare := &+[r_ij(r,i,Image(sigma,i),d): i in [1..n]];
+            if min_compare lt min then
+                min := min_compare;
+            end if;
+        end for;
+    return (max-min)/d;
+end function;
+
+min_find := function(r,n,d)
+    min := 100000;
+    min_compare := 0;
+        for sigma in Sym({1..n}) do
+            min_compare := &+[r_ij(r,i,Image(sigma,i),d): i in [1..n]];
+            if min_compare lt min then
+                min := min_compare;
+            end if;
+        end for;
+    return min;
+end function;
+
+min_count := function(r,n,d,min)
+    min_count := 0;
+        for sigma in Sym({1..n}) do
+            min_compare := &+[r_ij(r,i,Image(sigma,i),d): i in [1..n]];
+            if min_compare eq min then
+                min_count := min_count + 1;
+            end if;
+        end for;
+    return min_count;
+end function;
+
+min_perm := function(r,n,d,min)
+    perm_list := [];
+        for sigma in Sym({1..n}) do
+            min_compare := &+[r_ij(r,i,Image(sigma,i),d): i in [1..n]];
+            if min_compare eq min then
+                Append(~perm_list,sigma);
+            end if;
+        end for;
+    return perm_list;
+end function;
+
+d := 5;
+p := 103;
+r := p - d*Floor(p/d);
+
+for n in [1..d-1] do
+    print(c_n(r,n,d));
+end for;

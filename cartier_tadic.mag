@@ -6,7 +6,7 @@ compute_genus := function(d,p);
 end function;
 
 find_mu := function(i,d,p);
-    answer := p-1;
+    answer := p+1;
     while (answer-1)*d/p gt i do
         answer := answer - 1;
     end while;
@@ -169,7 +169,6 @@ construct_schmidt := function(f,p)
         end for;
 
         un := un / n;
-        print(un);
         AH_coefficients[#AH_coefficients +1] := un;
     end for;
 
@@ -276,35 +275,66 @@ construct_M1cartier := function(f,p)
     return nM;
 end function;
 
-p := 47;
+// p := 31;
 
-Fp := FiniteField(p);
-Ab_unred<T> := PolynomialRing(Fp);
-A := FunctionField(Fp);
-Rp<x> := PolynomialRing(Ab_unred);
-count := 0;
-for a_3 in [0..p-1] do
-    for a_2 in [0..p-1] do
-        for a_1 in [0..p-1] do
-            f := 0*x^4 + 1*x^3+ a_2*x^2 + a_1*x;
+// Fp := FiniteField(p);
+// Ab_unred<T> := PolynomialRing(Fp);
+// A := FunctionField(Fp);
+// Rp<x> := PolynomialRing(Ab_unred);
+
             
-            FF<t>:= FunctionField(Fp);
-            g := &+[Coefficient(term, Degree(term))*t^(-Degree(term)): term in Terms(f)];
-            if anumber(g, Degree(f), FF) lt lower_bound(Degree(f),p) + 4 then
-                nM := simplified_tadic(f,p);
+//             FF<t>:= FunctionField(Fp);
+//             g := &+[Coefficient(term, Degree(term))*t^(-Degree(term)): term in Terms(f)];
+//             if anumber(g, Degree(f), FF) gt lower_bound(Degree(f),p) + 4 then
+//                 nM := simplified_tadic(f,p);
 
-                fprintf "matrix_examples.txt", "p = %3o, f = %3o \n", p, f;
-                fprintf "matrix_examples.txt", "%3o \n", nM;
-                fprintf "matrix_examples.txt", "genus: %3o \n", compute_genus(Degree(f),p);
-                fprintf "matrix_examples.txt", "lower bound: %3o \n", lower_bound(Degree(f),p);
-                fprintf "matrix_examples.txt", "a-number: %3o \n \n", anumber(g,Degree(f),FF);
+//                 fprintf "matrix_examples.txt", "p = %3o, f = %3o \n", p, f;
+//                 fprintf "matrix_examples.txt", "%3o \n", nM;
+//                 fprintf "matrix_examples.txt", "genus: %3o \n", compute_genus(Degree(f),p);
+//                 fprintf "matrix_examples.txt", "lower bound: %3o \n", lower_bound(Degree(f),p);
+//                 fprintf "matrix_examples.txt", "a-number: %3o \n \n", anumber(g,Degree(f),FF);
 
-                count := count + 1;
-            end if;
+//                 count := count + 1;
+//             end if;
 
-            if count eq 1 then
-                break a_3;
-            end if;
-        end for;
-    end for;    
-end for;
+//             if count eq 1 then
+//                 break a_3;
+//             end if;
+
+
+// print(count);
+sample_minimal:=function(d,p);
+    count:=10000;
+    K:=GF(p);
+    FF<t>:=FunctionField(K);
+    lowerbound:=lower_bound(d,p);
+    upperbound:=upper_bound(d,p);
+
+    if (d mod p eq 0) then
+	    return "Invalid";
+    end if;
+
+    dictionary := [[],[]];
+    n :=0;
+    while (n lt count) do
+        n := n+1;
+        f := rand_poly(t,d,p);
+        a := anumber(f,d,FF);
+
+        index := Position(dictionary[1], a);
+        if index eq 0 then
+            Append(~dictionary[1],a);
+            Append(~dictionary[2],1);
+        else
+            dictionary[2][index] +:= 1;
+        end if;
+            
+
+    end while;
+
+    return dictionary;
+end function;
+
+A<x>:=PolynomialRing(GF(23));
+f:=x^5+x^3+x^2;
+//M:=construct_M1cartier(f,23);
