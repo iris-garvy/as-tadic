@@ -67,10 +67,11 @@ construct_tadic := function (f,p)
     Ab_unred<T> := PolynomialRing(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
 
-    f := Rp!f;
     d := Degree(f);
     matrix_size := Floor((p-1)*d/p);
 
+    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
+    
     //find alpha to the first level
     alpha := 1 + T*f + T^2 * (f - f^2);
 
@@ -80,7 +81,7 @@ construct_tadic := function (f,p)
     for i in [1..p-1] do
         alpha_inverse := alpha_inverse + (1 - alpha*alpha_inverse);
     end for;
-
+    
     //write out cartier matrix
     cartier_coefficients := Coefficients(alpha_inverse);
 
@@ -92,6 +93,7 @@ construct_tadic := function (f,p)
                 nM[i][j] := 0;
             else
                 nM[i][j] := truncate_poly(cartier_coefficients[p*i-j+1], p-1, Ab_unred); 
+                
             end if;
         end for;
     end for; 
@@ -101,13 +103,16 @@ construct_tadic := function (f,p)
 end function;
 
 simplified_tadic := function (f,p)
+    d := Degree(f);
+    matrix_size := Floor((p-1)*d/p);
+
     Fp := FiniteField(p);
     Ab_unred<T> := PolynomialRing(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
-
-    f := Rp!f;
-    d := Degree(f);
-    matrix_size := Floor((p-1)*d/p);
+    
+    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
+    
+    
 
     //find alpha to the first level
     alpha := 1 + T*f + T^2 * (f - f^2);
@@ -123,7 +128,7 @@ simplified_tadic := function (f,p)
     cartier_coefficients := Coefficients(alpha_inverse);
 
     nM := [[Ab_unred!0^^matrix_size]^^matrix_size];
-
+    
     for i in [1..matrix_size] do
         for j in [1..matrix_size] do
             if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
@@ -190,7 +195,6 @@ construct_schmidt := function(f,p)
     B := 1;
         for term in Terms(f) do
             B := B * (&+[AH_coefficients[i+1] * (xpi * L!term)^(i): i in [0..ps_precision-1]]);
-            print(B);
         end for;
     B_coefficients := Coefficients(B);
 
@@ -237,17 +241,16 @@ r2m_Matrix := function(d,p)
 end function;
 
 construct_M1cartier := function(f,p)
-
+    d := Degree(f);
     Fp := FiniteField(p);
     Ab_unred<T> := PolynomialRing(Fp);
     A := FunctionField(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
 
-    f:= Rp!f;
-
+    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
+    
     change_matrix_basis := r2m_Matrix(Degree(f),p);
     nM := construct_tadic(f,p);
-
     nM := nM*change_matrix_basis;
     nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
     nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
@@ -335,6 +338,7 @@ sample_minimal:=function(d,p);
     return dictionary;
 end function;
 
-A<x>:=PolynomialRing(GF(23));
-f:=x^5+x^3+x^2;
-//M:=construct_M1cartier(f,23);
+p:=23;
+A<x>:=PolynomialRing(GF(p));
+f:=x^4+x;
+M:= construct_M1cartier(f,p);
