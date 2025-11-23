@@ -245,7 +245,7 @@ sample_new:=function(d,p,count);
     return f;
 end function;
 
-// K := GF(19);
-// FF<t> := FunctionField(K);
-// f:= t^(-40) + 18 * t^(-36) + 18* t^(-32) + 18 * t^(-28) + 18 * t^(-24) + t^(-20) + t^(-16) + t^(-12) + t^(-8) + t^(-4);
-// anumber(f,40,FF);
+K := GF(11);
+FF<t> := FunctionField(K);
+f:= t^(-12)+t^(-10);
+anumber(f,12,FF);

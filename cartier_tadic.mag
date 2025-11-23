@@ -5,6 +5,8 @@ compute_genus := function(d,p);
     return Integers()!((d+1-2) * (p-1)/2);
 end function;
 
+
+//Note that this find_mu function is only accurate for p>d
 find_mu := function(i,d,p);
     answer := p+1;
     while (answer-1)*d/p gt i do
@@ -278,6 +280,11 @@ construct_M1cartier := function(f,p)
     return nM;
 end function;
 
+
+
+
+
+
 // p := 31;
 
 // Fp := FiniteField(p);
@@ -338,7 +345,48 @@ sample_minimal:=function(d,p);
     return dictionary;
 end function;
 
-p:=23;
-A<x>:=PolynomialRing(GF(p));
-f:=x^4+x;
-M:= construct_M1cartier(f,p);
+
+anumber_T := function(f,p)
+    d:=Degree(f);
+    matrix_size := Floor((p-1)*d/p);
+    Fp := GF(p);
+    Ab_unred<T> := PolynomialRing(Fp);
+    Rp<x> := PolynomialRing(Ab_unred);
+    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
+    g:=compute_genus(d,p);
+
+    M:= Transpose(construct_tadic(f,p));
+    k_Cartier := [[Fp!0^^g]^^g];
+    off_set := 1;
+    for row_number in [1..matrix_size] do
+        thing := M[row_number];
+        thing := thing * T^(find_mu(row_number,d,p)-1);
+        for j_power in [0..p-find_mu(row_number,d,p)-1] do
+            thing := thing * T;
+            for entry_number in [1..matrix_size] do
+                thing[entry_number] := truncate_poly(thing[entry_number], p-1, Ab_unred);
+                for term in Terms(thing[entry_number]) do
+                    k_Cartier[off_set+j_power][Degree(term)] := Coefficient(term, Degree(term));
+                end for;
+            end for;
+        end for;
+        off_set := off_set + p-find_mu(row_number,d,p);
+    end for;
+    return g-Rank(Matrix(Fp,g,g,k_Cartier));
+end function;
+
+// p:=11;
+// fieldthing<x> := PolynomialRing(GF(p));
+// f := x^12+x^10;
+// d := Degree(f);
+// print(Floor((p-1)*d/p));
+// print(anumber_T(f,p));
+
+
+//for some reason this only works for d<p. i tried fixing the find_mu but it doesn't change for some reason.
+guess_a := function(d,p)
+    return compute_genus(d,p) - &+[p-find_mu(i,d,p)-Round(p*i/d): i in [1..Ceiling(d/2)-1] ];
+end function;
+
+
+
