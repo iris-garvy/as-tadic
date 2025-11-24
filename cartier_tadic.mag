@@ -284,34 +284,6 @@ end function;
 
 
 
-
-// p := 31;
-
-// Fp := FiniteField(p);
-// Ab_unred<T> := PolynomialRing(Fp);
-// A := FunctionField(Fp);
-// Rp<x> := PolynomialRing(Ab_unred);
-
-            
-//             FF<t>:= FunctionField(Fp);
-//             g := &+[Coefficient(term, Degree(term))*t^(-Degree(term)): term in Terms(f)];
-//             if anumber(g, Degree(f), FF) gt lower_bound(Degree(f),p) + 4 then
-//                 nM := simplified_tadic(f,p);
-
-//                 fprintf "matrix_examples.txt", "p = %3o, f = %3o \n", p, f;
-//                 fprintf "matrix_examples.txt", "%3o \n", nM;
-//                 fprintf "matrix_examples.txt", "genus: %3o \n", compute_genus(Degree(f),p);
-//                 fprintf "matrix_examples.txt", "lower bound: %3o \n", lower_bound(Degree(f),p);
-//                 fprintf "matrix_examples.txt", "a-number: %3o \n \n", anumber(g,Degree(f),FF);
-
-//                 count := count + 1;
-//             end if;
-
-//             if count eq 1 then
-//                 break a_3;
-//             end if;
-
-
 // print(count);
 sample_minimal:=function(d,p);
     count:=10000;
@@ -346,41 +318,47 @@ sample_minimal:=function(d,p);
 end function;
 
 
-anumber_T := function(f,p)
+power_shift := function(i,d,p)
+    off_set := 1;
+    for x_power in [1..i-1] do
+        off_set := off_set + p - find_mu(x_power,d,p);
+    end for;
+    return off_set;
+end function;
+
+
+
+
+
+a_numberT := function(f,p)
     d:=Degree(f);
-    matrix_size := Floor((p-1)*d/p);
     Fp := GF(p);
     Ab_unred<T> := PolynomialRing(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
     f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
     g:=compute_genus(d,p);
+    k_Cartier := [[Fp!0^^g]^^g];
 
     M:= Transpose(construct_tadic(f,p));
-    k_Cartier := [[Fp!0^^g]^^g];
-    off_set := 1;
-    for row_number in [1..matrix_size] do
-        thing := M[row_number];
-        thing := thing * T^(find_mu(row_number,d,p)-1);
-        for j_power in [0..p-find_mu(row_number,d,p)-1] do
-            thing := thing * T;
-            for entry_number in [1..matrix_size] do
-                thing[entry_number] := truncate_poly(thing[entry_number], p-1, Ab_unred);
-                for term in Terms(thing[entry_number]) do
-                    k_Cartier[off_set+j_power][Degree(term)] := Coefficient(term, Degree(term));
+    for x_power in [1..d-1] do
+        x_row := M[x_power]*T^(find_mu(x_power,d,p)-1);
+        for T_power in [0..p-find_mu(x_power,d,p)-1] do
+            x_row := x_row * T;
+            for x_col in [1..d-1] do
+                modded_polynomial := truncate_poly(x_row[x_col], p-1, Ab_unred);
+                for term in Terms(modded_polynomial) do
+                    k_Cartier[power_shift(x_power,d,p)+T_power][Degree(term)+power_shift(x_col,d,p)-find_mu(x_col,d,p)] := Coefficient(term, Degree(term));
                 end for;
             end for;
         end for;
-        off_set := off_set + p-find_mu(row_number,d,p);
     end for;
-    return g-Rank(Matrix(Fp,g,g,k_Cartier));
+    return compute_genus(d,p)- Rank(Matrix(Fp,g,g,k_Cartier));
 end function;
 
-// p:=11;
-// fieldthing<x> := PolynomialRing(GF(p));
-// f := x^12+x^10;
-// d := Degree(f);
-// print(Floor((p-1)*d/p));
-// print(anumber_T(f,p));
+p:=31;
+fieldx_row<x> := PolynomialRing(GF(p));
+f := x^7;
+print(a_numberT(f,p));
 
 
 //for some reason this only works for d<p. i tried fixing the find_mu but it doesn't change for some reason.
