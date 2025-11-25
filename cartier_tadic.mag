@@ -104,50 +104,6 @@ construct_tadic := function (f,p)
     return nM;
 end function;
 
-simplified_tadic := function (f,p)
-    d := Degree(f);
-    matrix_size := Floor((p-1)*d/p);
-
-    Fp := FiniteField(p);
-    Ab_unred<T> := PolynomialRing(Fp);
-    Rp<x> := PolynomialRing(Ab_unred);
-    
-    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
-    
-    
-
-    //find alpha to the first level
-    alpha := 1 + T*f + T^2 * (f - f^2);
-
-    //calculate alpha inverse
-    alpha_inverse := 1;
-
-    for i in [1..p-1] do
-        alpha_inverse := alpha_inverse + (1 - alpha*alpha_inverse);
-    end for;
-
-    //write out cartier matrix
-    cartier_coefficients := Coefficients(alpha_inverse);
-
-    nM := [[Ab_unred!0^^matrix_size]^^matrix_size];
-    
-    for i in [1..matrix_size] do
-        for j in [1..matrix_size] do
-            if p*i - j lt 0 or p*i - j + 1 gt #cartier_coefficients then
-                nM[i][j] := 0;
-            else
-                if cartier_coefficients[p*i-j+1] eq 0 then
-                    nM[i][j] := 0;
-                else
-                    nM[i][j] := truncate_poly(cartier_coefficients[p*i-j+1], Degree(TrailingTerm(cartier_coefficients[p*i-j+1])), Ab_unred); 
-                end if;
-            end if;
-        end for;
-    end for; 
-
-    nM := Matrix(Ab_unred, matrix_size, matrix_size, nM);
-    return nM;
-end function;
 
 construct_schmidt := function(f,p)
     d := Degree(f);
@@ -242,47 +198,6 @@ r2m_Matrix := function(d,p)
     return change_matrix_basis;
 end function;
 
-construct_M1cartier := function(f,p)
-    d := Degree(f);
-    Fp := FiniteField(p);
-    Ab_unred<T> := PolynomialRing(Fp);
-    A := FunctionField(Fp);
-    Rp<x> := PolynomialRing(Ab_unred);
-
-    f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
-    
-    change_matrix_basis := r2m_Matrix(Degree(f),p);
-    nM := construct_tadic(f,p);
-    nM := nM*change_matrix_basis;
-    nM := Matrix(Ab_unred, Nrows(nM), Ncols(nM), [ truncate_poly(nM[i,j], p-1, Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]);
-    nM := ChangeRing(change_matrix_basis,A)^-1*ChangeRing(nM,A);
-
-
-    for i in [1..Ncols(nM)] do
-        for j in [1..Nrows(nM)] do
-            if Denominator(nM[i,j]) ne 1 then
-                denominator := Denominator(nM[i,j]);
-                denominator_inverse := 1;
-                for k in [1..p] do
-                    denominator_inverse := denominator_inverse + (1 - denominator*denominator_inverse);
-                end for;
-                nM[i,j] := Numerator(nM[i,j])*denominator_inverse;
-            end if;
-        end for;
-    end for;
-
-    nM := Matrix(
-        Ab_unred, 
-        Nrows(nM), 
-        Ncols(nM), 
-        [truncate_poly((Ab_unred!nM[i,j]), (p-1)-Degree(TrailingTerm(Ab_unred!change_matrix_basis[i,i])), Ab_unred) : j in [1..Nrows(nM)], i in [1..Ncols(nM)] ]
-    );
-    return nM;
-end function;
-
-
-
-
 
 // print(count);
 sample_minimal:=function(d,p);
@@ -328,23 +243,23 @@ end function;
 
 
 
-
-
 a_numberT := function(f,p)
     d:=Degree(f);
+    matrix_size := Floor((p-1)*d/p);
     Fp := GF(p);
     Ab_unred<T> := PolynomialRing(Fp);
     Rp<x> := PolynomialRing(Ab_unred);
     f := &+[ Coefficient(f, i) * x^i : i in [0..d+1] ];
     g:=compute_genus(d,p);
     k_Cartier := [[Fp!0^^g]^^g];
+    r_coefficients := r2m_Matrix(d,p);
 
     M:= Transpose(construct_tadic(f,p));
-    for x_power in [1..d-1] do
-        x_row := M[x_power]*T^(find_mu(x_power,d,p)-1);
+    for x_power in [1..matrix_size] do
+        x_row := M[x_power]*T^(find_mu(x_power,d,p)-1)*r_coefficients[x_power][x_power];
         for T_power in [0..p-find_mu(x_power,d,p)-1] do
             x_row := x_row * T;
-            for x_col in [1..d-1] do
+            for x_col in [1..matrix_size] do
                 modded_polynomial := truncate_poly(x_row[x_col], p-1, Ab_unred);
                 for term in Terms(modded_polynomial) do
                     k_Cartier[power_shift(x_power,d,p)+T_power][Degree(term)+power_shift(x_col,d,p)-find_mu(x_col,d,p)] := Coefficient(term, Degree(term));
@@ -355,10 +270,53 @@ a_numberT := function(f,p)
     return compute_genus(d,p)- Rank(Matrix(Fp,g,g,k_Cartier));
 end function;
 
-p:=31;
-fieldx_row<x> := PolynomialRing(GF(p));
-f := x^7;
-print(a_numberT(f,p));
+rand_poly_pos:=function(t,d,p) ;
+    K:=GF(p);
+    poly := t^(d) ; //issue: what is t
+    for i in [1..d-1] do
+        if (i mod p ne 0) then
+            poly := poly + Random(K)*t^(i);
+        end if;
+    end for;
+    return poly;
+end function;
+
+
+check_method:=function(d,p);
+    count:=1000;
+    K:=GF(p);
+    PF<t>:=PolynomialRing(K);
+    FF<x>:=FunctionField(K);
+    lowerbound:=lower_bound(d,p);
+    upperbound:=upper_bound(d,p);
+
+    if (d mod p eq 0) then
+	    return "Invalid";
+    end if;
+
+    n :=0;
+    mismatches:=0;
+    while (n lt count) do
+        n := n+1;
+        f := rand_poly_pos(t,d,p);
+        a_T := a_numberT(PF!f,p);
+        f := &+[ Coefficient(f, i) * x^(-i) : i in [0..d+1] ];
+        a := anumber(f,d,FF);
+
+        if a_T ne a then
+            mismatches := mismatches +1;
+        end if;
+
+    end while;
+
+    return mismatches;
+end function;
+
+p:=11;
+Fp:= GF(p);
+R<x>:=PolynomialRing(Fp);
+f:= x^28+x^16+x^3;
+print(a_numberT(f,11));
 
 
 //for some reason this only works for d<p. i tried fixing the find_mu but it doesn't change for some reason.
